@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import "react-draft-wysiwyg/dist/react-draft-wysiwyg.css";
 import { EditorState } from "draft-js";
 import { db } from "../firebase";
 import { useSession } from "next-auth/client";
 import { convertFromRaw, convertToRaw } from "draft-js";
+import { useDocumentOnce } from "react-firebase-hooks/firestore";
+
 const Editor = dynamic(
   () => import("react-draft-wysiwyg").then((module) => module.Editor),
   {
@@ -19,6 +21,23 @@ export type TextEditorProps = {
 const TextEditor: React.FC<TextEditorProps> = ({ id }) => {
   const [editorState, setEditorState] = useState(EditorState.createEmpty());
   const [session] = useSession();
+  const [snapshot] = useDocumentOnce(
+    db
+      .collection("userDocs")
+      .doc(session?.user.email)
+      .collection("docs")
+      .doc(id)
+  );
+
+  useEffect(() => {
+    if (snapshot?.data()?.editorState) {
+      setEditorState(
+        EditorState.createWithContent(
+          convertFromRaw(snapshot?.data()?.editorState)
+        )
+      );
+    }
+  }, [snapshot]);
 
   const onEditorStateChange = (editorState) => {
     setEditorState(editorState);
